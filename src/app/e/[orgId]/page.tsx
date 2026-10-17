@@ -7,13 +7,20 @@ import { contexteOrganisation } from "@/lib/organisation";
 async function Contenu({ params }: PageProps<"/e/[orgId]">) {
   const { orgId } = await params;
   const { supabase, org, role } = await contexteOrganisation(orgId);
-  const { count } = await supabase.from("sources").select("id", { count: "exact", head: true });
+  const [{ count }, { count: nbImports }] = await Promise.all([
+    supabase.from("sources").select("id", { count: "exact", head: true }).eq("organisation_id", org.id),
+    supabase.from("imports").select("id", { count: "exact", head: true }).eq("organisation_id", org.id),
+  ]);
 
   return (
     <>
       <h1 className="text-2xl font-bold">Tableau de bord</h1>
       <Carte>
-        <p className="text-sm">Aucun import pour l&apos;instant. L&apos;import de fichiers arrive à l&apos;étape 2 du plan.</p>
+        <p className="text-sm">
+          {nbImports ? `${nbImports} fichier${nbImports > 1 ? "s" : ""} importé${nbImports > 1 ? "s" : ""}. ` : "Aucun fichier importé. "}
+          Les indicateurs s&apos;afficheront ici une fois les colonnes associées et les lignes contrôlées (étapes 3 à 7 du plan).{" "}
+          <Link href={`/e/${org.id}/imports`} className="underline">Voir les imports</Link>
+        </p>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {count ?? 0} source{(count ?? 0) > 1 ? "s" : ""} configurée{(count ?? 0) > 1 ? "s" : ""}.{" "}
           {role === "admin" && (

@@ -40,7 +40,7 @@ export async function supprimerSource(formulaire: FormData) {
   const supabase = await clientSupabase();
   const { error } = await supabase.from("sources").delete().eq("id", id).eq("organisation_id", orgId);
   const page = `/e/${orgId}/sources`;
-  if (error) redirect(`${page}?erreur=erreur`);
+  if (error) redirect(`${page}?erreur=${codeErreur(error)}`);
   revalidatePath(page);
   redirect(page);
 }

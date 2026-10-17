@@ -9,6 +9,7 @@ async function EnTete({ params }: { params: Promise<{ orgId: string }> }) {
   const { org, role, moi } = await contexteOrganisation(orgId);
   const liens = [
     { href: `/e/${org.id}`, libelle: "Tableau de bord" },
+    { href: `/e/${org.id}/imports`, libelle: "Imports" },
     { href: `/e/${org.id}/sources`, libelle: "Sources" },
     { href: `/e/${org.id}/equipe`, libelle: "Équipe" },
   ];

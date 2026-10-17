@@ -5,10 +5,11 @@ import { creerCompte, enTantQue, lire } from "./aide";
 
 export type JeuFictif = Awaited<ReturnType<typeof creerJeuFictif>>;
 
-export async function creerJeuFictif() {
-  const alice = await creerCompte("alice.admin@entreprise-a.fictif.test");
-  const arthur = await creerCompte("arthur.lecteur@entreprise-a.fictif.test");
-  const bea = await creerCompte("bea.admin@entreprise-b.fictif.test");
+/** `prefixe` distingue les comptes quand plusieurs fichiers de test partagent la base. */
+export async function creerJeuFictif(prefixe = "") {
+  const alice = await creerCompte(`${prefixe}alice.admin@entreprise-a.fictif.test`);
+  const arthur = await creerCompte(`${prefixe}arthur.lecteur@entreprise-a.fictif.test`);
+  const bea = await creerCompte(`${prefixe}bea.admin@entreprise-b.fictif.test`);
 
   const [{ creer_organisation: orgA }] = await lire<{ creer_organisation: string }>(
     alice, "select public.creer_organisation('Base de loisirs Fictive A')",
@@ -20,7 +21,7 @@ export async function creerJeuFictif() {
   // Alice invite Arthur comme lecteur ; Arthur accepte.
   await enTantQue(alice, (c) =>
     c.query("insert into public.invitations (organisation_id, email, role) values ($1, $2, 'lecteur')", [
-      orgA, "arthur.lecteur@entreprise-a.fictif.test",
+      orgA, `${prefixe}arthur.lecteur@entreprise-a.fictif.test`,
     ]),
   );
   await lire(arthur, "select public.accepter_invitations()");

@@ -31,6 +31,7 @@ export const contexteOrganisation = cache(async (orgId: string) => {
 export function codeErreur(erreur: { code?: string; message?: string } | null) {
   if (!erreur) return null;
   if (erreur.code === "23505") return "doublon";
+  if (erreur.code === "23503") return "source_utilisee";
   if (erreur.code === "42501") return "refuse";
   if (erreur.message?.includes("au moins un administrateur")) return "dernier_admin";
   return "erreur";

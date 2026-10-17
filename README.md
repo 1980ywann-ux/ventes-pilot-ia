@@ -2,7 +2,9 @@
 
 Application web SaaS B2B, en français, qui fusionne les fichiers de ventes d'un site de loisirs, contrôle leur qualité et calcule des indicateurs fiables. Le besoin est décrit dans le PRD « Ventes Pilot IA ».
 
-**État : étape 1 du plan de développement** (PRD section 15) : squelette applicatif, authentification, entreprises, rôles, isolation en base, jeux fictifs.
+**État : étapes 1 et 2 du plan de développement** (PRD section 15) :
+1. squelette applicatif, authentification, entreprises, rôles, isolation en base, jeux fictifs ;
+2. import de fichier : dépôt, empreinte, lecture CSV/Excel, prévisualisation.
 
 ## Ce que fait l'étape 1
 
@@ -15,6 +17,28 @@ Application web SaaS B2B, en français, qui fusionne les fichiers de ventes d'un
 - Sources de ventes : nom, type, base HT/TTC (H1) et priorité (H5).
 - Journal d'audit des actions (membres, invitations, sources), sans contenu de ventes.
 - Une entreprise garde toujours au moins un administrateur.
+
+## Ce que fait l'étape 2 (import de fichiers)
+
+- Dépôt d'un fichier `.csv` ou `.xlsx` de 20 Mo et 200 000 lignes au plus (PRD H9), rattaché à une source.
+- Le format est identifié d'après le contenu, pas l'extension. Sont refusés, avec la marche à suivre :
+  - les anciens `.xls` ;
+  - les classeurs à macros (`.xlsm` ou `.xlsx` piégé) ;
+  - les archives anormalement compressées ;
+  - les fichiers binaires.
+- **Empreinte SHA-256** : le même fichier ne peut pas être importé deux fois dans une entreprise. L'utilisateur est renvoyé vers l'import existant (H18).
+- Le fichier d'origine est conservé tel quel dans un espace de stockage privé, cloisonné par entreprise. Il ne peut être ni modifié ni remplacé.
+- Prévisualisation (écran E4) : les 20 premières lignes, le nombre de lignes et de colonnes, et des avertissements :
+  - en-têtes dupliqués ou vides ;
+  - lignes irrégulières ;
+  - cellules fusionnées ;
+  - formules sans valeur ;
+  - caractères mal décodés.
+- Pour un CSV, l'encodage (UTF-8, Windows-1252, UTF-16) et le séparateur (`;` `,` tabulation `|`) sont détectés, puis modifiables avec un aperçu immédiat.
+- Pour un classeur Excel, la feuille est choisie : par défaut, la première qui contient des données. Les dates en numéro de série s'affichent en jj/mm/aaaa.
+- Les formules ne sont jamais exécutées : on lit la valeur enregistrée par Excel.
+- Les nombres et les dates sont gardés tels quels. Leur interprétation (virgule décimale, jj/mm ou mm/jj) se fera à l'étape 3, avec confirmation de l'utilisateur.
+- L'administrateur valide les paramètres de lecture ou supprime l'import, avec confirmation. Le lecteur consulte.
 
 ## Isolation des données
 
@@ -31,8 +55,8 @@ Deux niveaux de tests le vérifient :
 
 | Commande | Ce qui est testé | Prérequis |
 | --- | --- | --- |
-| `npm test` | 36 tests SQL de la RLS : lecture, écriture, devinette d'existence, visiteur anonyme, rôles, invitations, et une garde qui échoue si une nouvelle table oublie la RLS ou `organisation_id` | PostgreSQL 16 |
-| `npm run test:e2e` | 34 vérifications dans un vrai navigateur : inscription, confirmation, création, invitation, refus d'accès entre entreprises, appels directs à l'API Supabase | Supabase local + `npm run dev` |
+| `npm test` | 95 tests : RLS des tables et du stockage de fichiers, garde qui échoue si une nouvelle table oublie la RLS ou `organisation_id`, et 43 tests de lecture (12 combinaisons séparateur × encodage, Excel piégé, fichiers anormaux) | PostgreSQL 16 |
+| `npm run test:e2e` | 55 vérifications dans un vrai navigateur : inscription, invitation, dépôt et aperçu de fichiers, doublon, refus d'accès entre entreprises, appels directs à l'API et au stockage Supabase | Supabase local + `npm run dev` |
 
 `npm test` tourne automatiquement sur GitHub à chaque envoi (`.github/workflows/verifications.yml`).
 
@@ -75,18 +99,24 @@ supabase/tests/           imitation minimale de Supabase pour tester sur Postgre
 src/proxy.ts              rafraîchit la session, renvoie les visiteurs vers /connexion
 src/lib/supabase/         clients Supabase côté serveur
 src/lib/organisation.ts   chargement de l'entreprise et du rôle (introuvable si non-membre)
+src/lib/import/           lecture des fichiers : format, encodage, séparateur, CSV, Excel, aperçu (code pur, testé)
 src/app/connexion/        inscription, connexion, déconnexion
 src/app/entreprises/      choix et création d'entreprise
-src/app/e/[orgId]/        espace d'une entreprise : tableau de bord, sources, équipe
+src/app/e/[orgId]/        espace d'une entreprise : tableau de bord, imports, sources, équipe
 tests/db/                 tests d'isolation (Vitest + PostgreSQL), jeu fictif
+tests/import/             tests de lecture de fichiers, fichiers fictifs générés
 tests/e2e/                scénario navigateur (Playwright)
 ```
 
 ## Limites connues de cette étape
 
 - L'application n'envoie pas encore d'e-mail d'invitation : l'administrateur prévient la personne lui-même.
+- Le chevauchement de période entre deux imports (H18) sera détecté à l'étape 4, une fois les dates interprétées. Seul le fichier strictement identique est détecté dès maintenant.
+- L'aperçu relit le fichier à chaque affichage : c'est suffisant jusqu'à 20 Mo. La lecture en tâche de fond (PRD section 12) viendra avec la normalisation des lignes (étape 4).
+- Les tailles annoncées dans un classeur Excel sont contrôlées avant la lecture. Un classeur qui mentirait sur ses tailles reste borné par la limite de 20 Mo du fichier déposé.
+- Une analyse antivirus des fichiers (PRD section 13) reste à brancher lors du durcissement (étape 10).
 - Le PRD (section 2) demande de valider les hypothèses H1 à H21 avant de développer. Cette étape n'en dépend presque pas ; les étapes suivantes, si.
 
 ## Étape suivante
 
-Étape 2 du PRD : import de fichier (dépôt, empreinte SHA-256, lecture CSV/Excel, prévisualisation), validée par les jeux de test d'encodage et de séparateurs.
+Étape 3 du PRD : association des colonnes aux champs normalisés, avec un modèle mémorisé par source. Critère de validation : mapping complet validé sur 3 structures de fichiers fictives.
